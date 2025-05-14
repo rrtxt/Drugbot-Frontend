@@ -5,7 +5,8 @@ import Head from "next/head";
 import ChatHeader from "@/components/ChatHeader";
 import LoadingDots from "@/components/LoadingDots";
 import ChatMessage from "@/components/ChatMessage";
-import { fetchChatResponse } from "@/utils/api";
+import { fetchChatResponse, fetchHealthCheck } from "@/utils/api";
+import { toast } from "react-toastify";
 
 interface Message {
   id: string;
@@ -34,6 +35,32 @@ export default function Home() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleHealthCheck = async () => {
+    try {
+      const result = await fetchHealthCheck();
+      toast.success(`Health Check: ${result.status} - ${result.message}`, {
+        position: "bottom-right",
+        autoClose: 3000,
+        hideProgressBar: true,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: false,
+        progress: undefined,
+      });
+    } catch (error) {
+      console.error("Error during Health Check:", error);
+      toast.error("Health Check failed. Please try again later.", {
+        position: "bottom-right",
+        autoClose: 3000,
+        hideProgressBar: true,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: false,
+        progress: undefined,
+      });
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -85,10 +112,6 @@ export default function Home() {
     }
   };
 
-  // const formatTime = (date: Date) => {
-  //   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  // };
-
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Head>
@@ -100,10 +123,16 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <header className="bg-sky-500 text-white shadow-md">
+      <header className="bg-sky-500 text-white shadow-md flex items-center justify-between p-4">
         <ChatHeader title="Drugbot" subtitle="Chatbot untuk Rekomendasi Obat" />
+        <div>
+          <button
+            onClick={handleHealthCheck}
+            className="bg-sky-400 border-white text-white px-4 py-2 rounded-full hover:bg-sky-600 transition-colors">
+            Health Check
+          </button>
+        </div>
       </header>
-
       <main className="flex-grow container mx-auto px-4 py-6 flex flex-col max-w-3xl">
         <div className="flex-grow bg-white rounded-lg shadow-md p-4 mb-4 overflow-y-auto max-h-[70vh]">
           <div className="space-y-4">
@@ -114,28 +143,6 @@ export default function Home() {
                 sender={message.sender}
                 timestamp={message.timestamp}
               />
-              //   <div
-              //     key={message.id}
-              //     className={`flex ${
-              //       message.sender === "user" ? "justify-end" : "justify-start"
-              //     }`}>
-              //     <div
-              //       className={`max-w-[80%] rounded-lg px-4 py-2 ${
-              //         message.sender === "user"
-              //           ? "bg-sky-500 text-white rounded-br-none"
-              //           : "bg-sky-100 text-gray-800 rounded-bl-none"
-              //       }`}>
-              //       <p className="text-sm">{message.text}</p>
-              //       <p
-              //         className={`text-xs mt-1 ${
-              //           message.sender === "user"
-              //             ? "text-sky-200"
-              //             : "text-gray-500"
-              //         }`}>
-              //         {formatTime(message.timestamp)}
-              //       </p>
-              //     </div>
-              //   </div>
             ))}
             {isLoading && <LoadingDots />}
             <div ref={messagesEndRef} />
