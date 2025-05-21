@@ -14,6 +14,7 @@ RUN npm ci
 # Development Image
 FROM dependencies AS development
 ENV NODE_ENV=development
+COPY . .
 CMD [ "npm", "run", "dev" ]
 
 # Build the application
@@ -41,9 +42,3 @@ COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 EXPOSE 3000
 
 CMD [ "npm", "start" ]
-
-
-
-
-
-

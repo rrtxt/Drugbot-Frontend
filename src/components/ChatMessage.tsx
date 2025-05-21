@@ -21,7 +21,11 @@ export default function ChatMessage({ text, sender, timestamp }: MessageProps) {
             ? "bg-sky-500 text-white rounded-br-none"
             : "bg-sky-100 text-gray-800 rounded-bl-none"
         }`}>
-        <p className="text-sm">{text}</p>
+        {sender === "bot" ? (
+          <div dangerouslySetInnerHTML={{ __html: text }} className="text-sm" />
+        ) : (
+          <p className="text-sm">{text}</p>
+        )}
         <p
           className={`text-xs mt-1 ${
             sender === "user" ? "text-sky-200" : "text-gray-500"
