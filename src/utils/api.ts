@@ -1,6 +1,6 @@
-export const fetchChatResponse = async (query: string) => {
+export const fetchChatResponse = async (query: string, isUsingRag: boolean) => {
   try {
-    const response = await fetch(`api/chat`, {
+    const response = await fetch(`api/chat?is_using_rag=${isUsingRag}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -15,6 +15,43 @@ export const fetchChatResponse = async (query: string) => {
     return await response.json();
   } catch (error) {
     console.error("Error fetching chat response:", error);
+    throw error;
+  }
+};
+
+export const fetchChatHistory = async (sessionId: string) => {
+  try {
+    const response = await fetch(`api/chat/histories`); 
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching chat history:", error);
+    throw error;
+  }
+};
+
+export const fetchChatHistoryBySessionId = async (sessionId: string) => {
+  try {
+    const response = await fetch(`api/chat/histories/${sessionId}`);
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching chat collection:", error);
+    throw error;
+  }
+};
+
+export const deleteChatCollection = async (sessionId: string) => {
+  try {
+    const response = await fetch(`api/chat/histories/${sessionId}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    console.error("Error deleting chat collection:", error);
     throw error;
   }
 };
