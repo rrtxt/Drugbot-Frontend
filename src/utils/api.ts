@@ -1,11 +1,11 @@
-export const fetchChatResponse = async (query: string, isUsingRag: boolean) => {
+export const fetchChatResponse = async (query: string, sessionId: string | null, isUsingRag: boolean) => {
   try {
     const response = await fetch(`api/chat?is_using_rag=${isUsingRag}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, sessionId }),
     });
 
     if (!response.ok) {
@@ -19,9 +19,22 @@ export const fetchChatResponse = async (query: string, isUsingRag: boolean) => {
   }
 };
 
+export const fetchChatSession = async () => {
+  try {
+    const response = await fetch("api/chat/sessions");
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching chat session:", error);
+    throw error;
+  }
+};
+
 export const fetchChatHistory = async (sessionId: string) => {
   try {
-    const response = await fetch(`api/chat/histories`); 
+    const response = await fetch(`api/chat/histories/${sessionId}`); 
     if (!response.ok) {
       throw new Error("Network response was not ok");
     }
@@ -32,18 +45,18 @@ export const fetchChatHistory = async (sessionId: string) => {
   }
 };
 
-export const fetchChatHistoryBySessionId = async (sessionId: string) => {
-  try {
-    const response = await fetch(`api/chat/histories/${sessionId}`);
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching chat collection:", error);
-    throw error;
-  }
-};
+// export const fetchChatHistoryBySessionId = async (sessionId: string) => {
+//   try {
+//     const response = await fetch(`api/chat/histories/${sessionId}`);
+//     if (!response.ok) {
+//       throw new Error("Network response was not ok");
+//     }
+//     return await response.json();
+//   } catch (error) {
+//     console.error("Error fetching chat collection:", error);
+//     throw error;
+//   }
+// };
 
 export const deleteChatCollection = async (sessionId: string) => {
   try {
