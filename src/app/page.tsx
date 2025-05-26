@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from 'next/navigation';
 import Head from "next/head";
 import ChatHeader from "@/components/ChatHeader";
 import LoadingDots from "@/components/LoadingDots";
@@ -29,70 +30,95 @@ interface Session {
   name: string;
   messages: Message[];
   createdAt: Date;
-  messagesLoaded?: boolean; // Added to track if messages are fetched
+  messagesLoaded?: boolean;
 }
 
-// Helper function to create the initial bot message for new chats
 const createInitialBotMessage = (): Message => ({
-  id: `msg-bot-${Date.now()}`,
+  id: `msg-bot-initial-${Date.now()}`,
   text: "Halo! Saya chatbot Anda. Apa yang bisa saya bantu hari ini?",
   sender: "bot",
   timestamp: new Date(),
 });
 
+// Temporary session structure for a new chat when activeSessionId is null
+const newChatInitialState: Omit<Session, 'id' | 'createdAt' | 'messagesLoaded'> = {
+  name: "Obrolan Baru",
+  messages: [createInitialBotMessage()],
+};
+
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null); // Changed: null indicates new chat
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // For message sending & loading specific session messages
-  const [isSessionLoading, setIsSessionLoading] = useState(true); // For initial session list loading
+  const [isLoading, setIsLoading] = useState(false); 
+  const [isSessionLoading, setIsSessionLoading] = useState(true); 
   const [isUsingRag, setIsUsingRag] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Special ID to indicate a new chat that hasn't been saved to backend yet
-  const NEW_CHAT_TEMP_ID = "new-chat-temp-id";
+  // Derive activeSession. If activeSessionId is null, it means it's a new chat.
+  const activeSession = activeSessionId 
+    ? sessions.find((session) => session.id === activeSessionId) 
+    : { ...newChatInitialState, id: 'new-chat', createdAt: new Date(), messagesLoaded: true }; // Provide a temporary structure for new chat
 
-  const activeSession = sessions.find(
-    (session) => session.id === activeSessionId
-  );
-
-  // Initial load of session history
+  // Initial load of session history & URL handling (will be refactored further in next step)
   useEffect(() => {
+    const urlSessionId = searchParams.get('sessionId');
+
     const loadInitialSessions = async () => {
       setIsSessionLoading(true);
       try {
-        const historyData = await fetchChatSession(); // Corrected: Use fetchChatSession to get all sessions
-        // Assuming historyData is an array of { id: string, name: string, created_at: string, ... }
+        const historyData = await fetchChatSession(); 
         const fetchedSessions: Session[] = historyData.map((s: any) => ({
           id: s.id,
           name: s.name || `Sesi ${new Date(s.created_at).toLocaleDateString()}`,
-          messages: [], // Messages will be loaded on demand when session is selected
+          messages: [], 
           createdAt: new Date(s.created_at),
           messagesLoaded: false,
         })).sort((a: Session, b: Session) => b.createdAt.getTime() - a.createdAt.getTime());
 
         setSessions(fetchedSessions);
 
-        if (fetchedSessions.length > 0) {
-           setActiveSessionId(fetchedSessions[0].id);
+        let initialActiveIdToSet: string | null = null;
+
+        if (urlSessionId) {
+          // If there's a session ID in the URL
+          const sessionFromUrl = fetchedSessions.find(s => s.id === urlSessionId);
+          if (sessionFromUrl) {
+            initialActiveIdToSet = sessionFromUrl.id;
+          } else {
+            // Invalid session ID in URL, treat as new chat, clear URL
+            toast.warn("ID Sesi di URL tidak valid. Memulai obrolan baru.");
+            router.replace(`/`, { scroll: false }); // Clear invalid sessionId from URL
+            initialActiveIdToSet = null; // Fallback to new chat state
+          }
         } else {
-          handleCreateNewChat();
+          // No session ID in URL, default to new chat state
+          initialActiveIdToSet = null;
         }
+        
+        setActiveSessionId(initialActiveIdToSet);
+
       } catch (error) {
-        console.error("Error fetching chat history:", error);
+        console.error("Error fetching initial sessions:", error);
         toast.error("Gagal memuat riwayat chat.");
-        if (sessions.length === 0) {
-            handleCreateNewChat();
+        // Fallback to new chat if history load fails and no URL session specified
+        if (!urlSessionId) {
+            setActiveSessionId(null); 
         }
       } finally {
         setIsSessionLoading(false);
       }
     };
     loadInitialSessions();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // searchParams is used, but typically stable on initial mount. router is not needed here.
 
   // Effect to load messages when activeSessionId changes and messages are not loaded
-   useEffect(() => {
+  useEffect(() => {
+    // Only load if activeSessionId is a real ID (not null) and messages aren't loaded
     if (activeSessionId && activeSession && !activeSession.messagesLoaded && activeSession.messages.length === 0) {
       const loadMessagesForSelectedSession = async () => {
         setIsLoading(true); // Use main loading indicator for messages
@@ -129,7 +155,7 @@ export default function Home() {
       };
       loadMessagesForSelectedSession();
     }
-  }, [activeSessionId, activeSession, sessions]); // sessions dependency to re-evaluate if sessions array itself changes
+  }, [activeSessionId, activeSession, sessions]);
 
 
   // Auto-scroll to bottom when messages in the active session change
@@ -141,21 +167,20 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleCreateNewChat = () => {
-    setActiveSessionId(NEW_CHAT_TEMP_ID);
-    setInput(""); 
-    // Optionally, create a temporary local session object if needed for UI rendering of "New Chat"
-    const tempSessionExists = sessions.find(s => s.id === NEW_CHAT_TEMP_ID);
-    if (!tempSessionExists) {
-      const tempNewSession: Session = {
-        id: NEW_CHAT_TEMP_ID,
-        name: "Obrolan Baru",
-        messages: [createInitialBotMessage()], // Show initial bot message for new chat
-        createdAt: new Date(),
-        messagesLoaded: true, // Considered loaded as it's local
-      };
-      setSessions(prev => [tempNewSession, ...prev.filter(s => s.id !== NEW_CHAT_TEMP_ID)]);
+  // Effect to update URL when activeSessionId changes
+  useEffect(() => {
+    const currentUrlSessionId = searchParams.get('sessionId');
+    if (activeSessionId && activeSessionId !== currentUrlSessionId) {
+      router.replace(`/?sessionId=${activeSessionId}`, { scroll: false });
+    } else if (activeSessionId === null && currentUrlSessionId) {
+      router.replace(`/`, { scroll: false });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessionId, router, searchParams]);
+
+  const handleCreateNewChat = () => {
+    setActiveSessionId(null); // Set to null for new chat
+    setInput("");
   };
 
   const handleSelectSession = (sessionId: string) => {
@@ -217,7 +242,9 @@ export default function Home() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !activeSession) return;
+
+    // activeSession is now guaranteed to be at least the newChatInitialState structure
+    if (!input.trim() || !activeSession) return; 
 
     const userMessage: Message = {
       id: `msg-user-${Date.now()}`,
@@ -231,31 +258,24 @@ export default function Home() {
     setIsLoading(true);
 
     // Optimistically add user message to the UI
-    // If it's a new chat, the activeSession might be the temporary one or not exist yet in the main list.
-    if (activeSessionId === NEW_CHAT_TEMP_ID) {
-        // If it's the first message of a new chat, update the temporary session or create it if not done in handleCreateNewChat
-        setSessions(prev => {
-            const existingTemp = prev.find(s => s.id === NEW_CHAT_TEMP_ID);
-            if (existingTemp) {
-                return prev.map(s => s.id === NEW_CHAT_TEMP_ID ? {...s, messages: [...s.messages, userMessage]} : s);
-            }
-            // This case should ideally be covered by handleCreateNewChat adding a temp session
-            return prev; 
-        });
-    } else if (activeSession) {
-        setSessions(prevSessions =>
-          prevSessions.map(s =>
-            s.id === activeSessionId
-              ? { ...s, messages: [...s.messages, userMessage] }
-              : s
-          )
-        );
+    // If activeSessionId is null, it's a new chat. We update the temporary newChatInitialState via activeSession derivation.
+    if (activeSessionId === null) {
+      // For a new chat, we are updating the messages array that `activeSession` references for the new chat state.
+      const currentNewChatMessages = activeSession.messages;
+      activeSession.messages.push(userMessage); 
+    } else {
+      // Existing session
+      setSessions(prevSessions =>
+        prevSessions.map(s =>
+          s.id === activeSessionId
+            ? { ...s, messages: [...s.messages, userMessage] }
+            : s
+        )
+      );
     }
 
     try {
       const response = await fetchChatResponse(currentInput, activeSessionId, isUsingRag); 
-      // response = { message: { text_content: string, ...other_bot_message_fields }, sessionId: string }
-
       const botMessageText = response.message?.text_content || "Maaf, saya tidak dapat memproses permintaan Anda.";
       const processedBotText = (await remark().use(html).process(botMessageText)).toString();
       
@@ -269,36 +289,39 @@ export default function Home() {
       const returnedSessionId = response.sessionId;
 
       setSessions(prevSessions => {
-        let sessionExists = prevSessions.find(s => s.id === returnedSessionId);
-        if (activeSessionId === NEW_CHAT_TEMP_ID || !sessionExists) {
-          // This was a new chat, or the session ID returned is new to the frontend.
-          // Replace temp session or add new session.
-          const newSessionName = activeSession?.name === "Obrolan Baru" && activeSessionId === NEW_CHAT_TEMP_ID 
-                                 ? `Sesi ${new Date().toLocaleDateString()}` // Give a default name
-                                 : (sessionExists ? sessionExists.name : `Sesi ${new Date().toLocaleDateString()}`);
-          
+        const existingSessionIndex = prevSessions.findIndex(s => s.id === returnedSessionId);
+
+        if (existingSessionIndex !== -1) {
+          // Session already exists, update its messages
+          return prevSessions.map((s, index) =>
+            index === existingSessionIndex
+              ? { 
+                  ...s, 
+                  messages: [...s.messages, botMessage], 
+                  messagesLoaded: true 
+                }
+              : s
+          );
+        } else {
+          // New session ID returned from backend (likely was a new chat)
+          // The user message was already added to `activeSession.messages` if it was a new chat.
+          const messagesForNewSession = activeSessionId === null 
+            ? [...activeSession.messages, botMessage] // Includes initial bot, user message, and new bot message
+            : [userMessage, botMessage]; // Should not happen if session ID is new but activeSessionId wasn't null
+
           return [
             { 
               id: returnedSessionId, 
-              name: newSessionName, // You might want to get name from user input or first message later
-              messages: activeSessionId === NEW_CHAT_TEMP_ID && prevSessions.find(s => s.id === NEW_CHAT_TEMP_ID) 
-                        ? [...(prevSessions.find(s => s.id === NEW_CHAT_TEMP_ID)?.messages || []), botMessage] // keep user + initial bot + new bot
-                        : [userMessage, botMessage], // Or just the current exchange for a totally new ID
+              name: `Sesi ${new Date().toLocaleDateString()}`, // Or generate from first message, or let backend define
+              messages: messagesForNewSession, 
               createdAt: new Date(), 
               messagesLoaded: true 
             },
-            ...prevSessions.filter(s => s.id !== NEW_CHAT_TEMP_ID && s.id !== returnedSessionId)
-          ];
-        } else {
-          // Existing session, just add the bot message
-          return prevSessions.map(s =>
-            s.id === returnedSessionId
-              ? { ...s, messages: [...s.messages, botMessage], messagesLoaded: true }
-              : s
-          );
+            ...prevSessions // Add new session to the top (or sort as preferred)
+          ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }
       });
-      setActiveSessionId(returnedSessionId); // Ensure the active session is the one from backend
+      setActiveSessionId(returnedSessionId); // Critical: update activeSessionId to the one from backend
 
     } catch (error) {
       console.error("Error sending message:", error);
@@ -308,13 +331,20 @@ export default function Home() {
         sender: "bot",
         timestamp: new Date(),
       };
-      setSessions(prevSessions =>
-        prevSessions.map(s =>
-          s.id === activeSessionId
-            ? { ...s, messages: [...s.messages, errorMessage] }
-            : s
-        )
-      );
+      // Add error message to current view (either existing session or new chat view)
+      if (activeSessionId === null) {
+        activeSession.messages.push(errorMessage);
+        // Force re-render if needed (setSessions with a dummy change or re-set activeSessionId)
+        setSessions(prev => [...prev]); // Trigger re-render for new chat optimistic update
+      } else {
+         setSessions(prevSessions =>
+            prevSessions.map(s =>
+              s.id === activeSessionId
+                ? { ...s, messages: [...s.messages, errorMessage] }
+                : s
+            )
+          );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -412,14 +442,14 @@ export default function Home() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={activeSession ? "Ketik pesan Anda di sini..." : "Pilih atau buat sesi untuk memulai"}
+                  placeholder={activeSession ? "Ketik pesan Anda di sini..." : "Mulai obrolan baru..."}
                   className="flex-grow px-4 py-2 border text-black border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  disabled={isLoading || !activeSessionId}
+                  disabled={isLoading}
                 />
                 <button
                   type="submit"
                   className="bg-sky-500 text-white px-4 py-2 rounded-full hover:bg-sky-600 transition-colors disabled:bg-sky-300"
-                  disabled={isLoading || !input.trim() || !activeSessionId}>
+                  disabled={isLoading || !input.trim()}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5"
