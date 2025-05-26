@@ -7,7 +7,7 @@ interface ChatHeaderProps {
 
 export default function ChatHeader({ title, subtitle }: ChatHeaderProps) {
   return (
-    <header className="bg-sky-500 text-white shadow-md">
+    <header className="bg-sky-500 text-white">
       <div className="container mx-auto px-4 py-4">
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-sky-100">{subtitle}</p>
