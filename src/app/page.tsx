@@ -431,7 +431,7 @@ export default function Home() {
             )}
             {currentMessages.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-4 space-y-4">
-                {currentMessages.map((message) => (
+                {currentMessages.filter(m => m.text.trim() !== "").map((message) => (
                   <ChatMessage
                     key={message.id}
                     text={message.text}
