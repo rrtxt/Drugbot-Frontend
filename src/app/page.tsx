@@ -396,7 +396,7 @@ export default function Home() {
           name="description"
           content="Chatbot pribadi dengan interface yang menarik"
         />
-        <link rel="icon" href="/favicon.ico" />
+        {/* <link rel="icon" href="/icon.png" /> */}
       </Head>
 
       <header className="bg-sky-500 text-white shadow-md flex items-center justify-between p-4">
