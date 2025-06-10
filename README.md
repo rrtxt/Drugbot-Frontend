@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Drugbot Frontend
+
+This is the frontend for Drugbot, a chatbot for drug recommendation that leverages Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG).
+
+## User Interface
+
+![Drugbot UI](docs/Drugbot%20UI.png)
+
+## Table of Contents
+
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Available Scripts](#available-scripts)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
+  - [Docker](#docker)
+- [Technologies Used](#technologies-used)
 
 ## Getting Started
 
-First, run the development server:
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Prerequisites
+
+You need to have Node.js and npm (or pnpm/yarn/bun) installed on your machine.
+
+- [Node.js](https://nodejs.org/) (v23 or higher recommended, as per Dockerfile)
+- [npm](https://www.npmjs.com/get-npm)
+
+### Installation
+
+1.  Clone the repo
+    ```sh
+    git clone https://github.com/your_username/drugbot-frontend.git
+    ```
+2.  Install NPM packages
+    ```sh
+    npm install
+    ```
+3.  Start the development server
+    ```sh
+    npm run dev
+    ```
+
+The application will be available at [http://localhost:3000](http://localhost:3000).
+
+## Available Scripts
+
+In the project directory, you can run:
+
+-   `npm run dev`: Runs the app in the development mode using Turbopack.
+-   `npm run build`: Builds the app for production.
+-   `npm run start`: Starts the production server.
+-   `npm run lint`: Lints the code using Next.js's built-in ESLint configuration.
+
+## Environment Variables
+
+The application uses the following environment variable:
+
+-   `NEXT_PUBLIC_BACKEND_URL`: The URL of the backend service. It defaults to `http://localhost:5000`. The frontend rewrites requests from `/api` to this URL.
+
+## Deployment
+
+### Docker
+
+This project includes a `Dockerfile` for containerization.
+
+To build the Docker image for production:
+
+```sh
+docker build -t drugbot-frontend .
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To run the container:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sh
+docker run -p 3000:3000 -e NEXT_PUBLIC_BACKEND_URL=<your_backend_url> drugbot-frontend
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Replace `<your_backend_url>` with the actual URL of your backend service.
 
-## Learn More
+## Technologies Used
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+-   [Next.js](https://nextjs.org/) - React Framework
+-   [React](https://reactjs.org/) - JavaScript library for building user interfaces
+-   [TypeScript](https://www.typescriptlang.org/) - Typed JavaScript
+-   [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+-   [React Toastify](https://fkhadra.github.io/react-toastify/introduction/) - For notifications
+-   [Docker](https://www.docker.com/) - Containerization platform 
