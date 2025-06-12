@@ -4,11 +4,12 @@ interface MessageProps {
   id?: string;
   text: string;
   sender: "user" | "bot";
-  timestamp: Date;
+  timestamp: number;
 }
 
 export default function ChatMessage({ text, sender, timestamp }: MessageProps) {
-  const formatTime = (date: Date) => {
+  const formatTime = (dateInMs: number) => {
+    const date = new Date(dateInMs);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
