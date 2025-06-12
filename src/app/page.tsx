@@ -22,7 +22,8 @@ interface Message {
   id: string;
   text: string;
   sender: "user" | "bot";
-  timestamp: Date;
+  timestamp: number
+  is_rag: boolean;
 }
 
 interface Session {
@@ -38,7 +39,8 @@ const createInitialBotMessage = (): Message => ({
   id: `msg-bot-initial-${Date.now()}`,
   text: "Halo! Saya chatbot Anda. Apa yang bisa saya bantu hari ini?",
   sender: "bot",
-  timestamp: new Date(),
+  timestamp: Date.now(),
+  is_rag: false,
 });
 
 export default function Home() {
@@ -68,6 +70,7 @@ export default function Home() {
 
       try {
         const historyData = await fetchChatSession();
+        console.log(historyData);
         const sessionIdsFromApi: string[] = historyData.session_ids || [];
 
         const fetchedSessions: Session[] = sessionIdsFromApi
@@ -130,13 +133,22 @@ export default function Home() {
           const sessionDetails = await fetchChatHistory(activeSessionId);
           const loadedMessages: Message[] = sessionDetails.map((m: any) => {
             let senderType: "user" | "bot" = m.role === "human" ? "user" : "bot";
+            let dateValue = m.created_at || Date.now();
+            if (typeof dateValue === 'string') {
+                // We truncate it to milliseconds for better compatibility.
+                dateValue = dateValue.replace(/(\.\d{3})\d+/, "$1");
+            }
             return {
               id: m.id || crypto.randomUUID(), // Prefer stable ID from backend
               text: m.content,
               sender: senderType,
-              timestamp: new Date(m.created_at || Date.now()),
+              timestamp: new Date(dateValue).getTime(),
+              is_rag: m.is_rag || false,
             };
-          }).sort((a: Message, b: Message) => a.timestamp.getTime() - b.timestamp.getTime());
+          });
+
+          loadedMessages.sort((a: Message, b: Message) => a.timestamp - b.timestamp);
+           console.log("Loaded messages:", loadedMessages);
 
           setSessions(prevSessions =>
             prevSessions.map(s =>
@@ -145,13 +157,16 @@ export default function Home() {
                 : s
             )
           );
+
+          const isRag = loadedMessages.some(m => m.is_rag);
+          setIsUsingRag(isRag);
         } catch (error) {
           console.error(`Error fetching messages for session ${activeSessionId}:`, error);
           toast.error("Gagal memuat pesan untuk sesi ini.");
           setSessions(prevSessions =>
             prevSessions.map(s =>
               s.id === activeSessionId
-                ? { ...s, messages: [createInitialBotMessage(), {id: 'err-msg-load', text:'Gagal memuat riwayat pesan untuk sesi ini.', sender: 'bot', timestamp: new Date()}], messagesLoaded: true }
+                ? { ...s, messages: [createInitialBotMessage(), {id: 'err-msg-load', text:'Gagal memuat riwayat pesan untuk sesi ini.', sender: 'bot', timestamp: Date.now(), is_rag: false}], messagesLoaded: true }
                 : s
             )
           );
@@ -248,7 +263,8 @@ export default function Home() {
       id: `msg-user-${Date.now()}`,
       text: input,
       sender: "user",
-      timestamp: new Date(),
+      timestamp: Date.now(),
+      is_rag: isUsingRag,
     };
 
     const currentInput = input;
@@ -260,7 +276,8 @@ export default function Home() {
       id: botMessageId,
       text: "", // Will be filled by API response or error
       sender: "bot",
-      timestamp: new Date(),
+      timestamp: Date.now(),
+      is_rag: isUsingRag,
     };
 
     if (activeSessionId === null) {
@@ -286,6 +303,8 @@ export default function Home() {
       const responseData = await fetchChatResponse(currentInput, activeSessionId, isUsingRag);
       const botResponseText = responseData.answer;
       const newOrConfirmedSessionId = responseData.sessionId; 
+
+      console.log(responseData);
 
       const processedBotText = (await remark().use(html).process(botResponseText || "...")).toString();
 
